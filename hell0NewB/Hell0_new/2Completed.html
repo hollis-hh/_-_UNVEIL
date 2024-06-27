@@ -1,0 +1,125 @@
+<!-- COMPLETED FACE TRACKING -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="p5.min.js"></script>
+    <title>Completed</title>
+</head>
+<!-- no scroll and green background-->
+<body style=" overflow-y: hidden;  overflow-x: hidden; background-color: rgb(34, 153, 84);cursor: none;">
+
+    <script>
+      let devices = [];
+      let tryingToNavigate = false;
+        let angle = 0; // Initial angle for drawing the circle
+      
+        const checkOthers = () => {
+  fetch('http://10.10.1.1:3000/atIndex').then(res => res.json()).then(atIndexs => {
+    if (atIndexs.R.value || atIndexs.G.value || atIndexs.B.value) {
+      fetch('http://10.10.1.1:3000/reset')
+      window.location.href = "Index.html"; // Redirect to the next interface
+    }
+  })}
+
+function setup() {
+  checkOthers();
+  createCanvas(windowWidth, windowHeight);
+ 
+  
+}
+
+function draw() {
+background(34, 153, 84);
+
+  drawCircle();
+  drawCheckMark(width / 2, height / 2, 100);
+
+  if (angle < TWO_PI) {
+    angle += 0.05; // Increment angle for the next frame
+  } else {
+    circleDrawn(); // Check if the circle is completed
+    checkForPlayer();
+  }
+  
+}
+
+function drawCheckMark(x, y, size) {
+  // Calculate coordinates for the check mark lines
+  let startX = x - size * 0.4;
+  let startY = y;
+  let midX = x - size * 0.05;
+  let midY = y + size * 0.30;
+  let endX = x + size * 0.45;
+  let endY = y - size * 0.5;
+
+  // Draw the check mark
+  stroke(255);
+  strokeWeight(10);
+  noFill();
+  beginShape();
+  vertex(startX, startY);
+  vertex(midX, midY);
+  vertex(endX, endY);
+  endShape();
+}
+
+function drawCircle() {
+  let circleRadius = 100; // Radius of the circle
+  let circleX = width / 2; // X-coordinate of the circle center
+  let circleY = height / 2; // Y-coordinate of the circle center
+
+  // Draw the circle
+  noFill();
+  stroke(255);
+  strokeWeight(10);
+  beginShape();
+  for (let a = 0; a <= angle; a += 0.01) {
+    let x = circleX + cos(a) * circleRadius;
+    let y = circleY + sin(a) * circleRadius;
+    vertex(x, y);
+  }
+  endShape();
+}
+
+function circleDrawn() {
+  // Redirect to Single.html once the circle is fully drawn
+  if (angle >= TWO_PI) {
+    console.log('sending');
+  }
+}
+
+function checkForPlayer() {
+  fetch("http://10.10.1.1:3000/complete")
+    .then(res => res.json())
+    //console.log('check for player')
+    .then(completed => {
+      // Check if all players are waiting
+      if (completed.R && completed.G && completed.B) {
+        setTimeout(() => {
+          if (tryingToNavigate == false) { // Ensure the HTML redirects as the next p5 sketch is drawn
+            window.location.href = "Final_Colour.html"; // Redirect to Final_Colour.html after 3 seconds
+            tryingToNavigate = true;
+          }
+        }, 3000); // 3000 milliseconds = 3 seconds
+      } else {
+        setTimeout(() => {
+          if (tryingToNavigate == false) { // Ensure the HTML redirects as the next p5 sketch is drawn
+            window.location.href = "Index.html"; // Open the next interface
+            tryingToNavigate = true;
+          }
+        }, 30000); // 3000 milliseconds = 3 seconds
+      }
+    })
+    .catch(err => console.error('Error fetching player status:', err));
+}
+      
+function mousePressed () {
+    window.location.href = "Index.html";  // Open the next interface
+  }
+      
+    </script>
+</body>
+</html> 

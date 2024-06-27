@@ -1,0 +1,265 @@
+<!-- COUNTDOWN FOR FACE TRACKING-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="p5.min.js"></script>
+    <title>Countdown</title>
+</head>
+<!-- no scroll and black background -->
+<body style=" overflow-y: hidden;  overflow-x: hidden; background-color: rgb(0, 0, 0);cursor: none;">
+    <script>
+
+let myFont;
+let countdown = 5; // Initialize countdown to 5 seconds
+let startTime;
+let frameCount = 0; // Keeps track of the frame count
+let delayFrames = 30; // Number of frames to wait before starting to type the first letter
+let delayBetweenLetters = 10; // Number of frames between each letter being added
+let waitingText = "Waiting..."; // Text to display with typewriter effect
+let letters = []; // Array to hold the letters as they are added
+let nextLetterTime = 0; // Time to add the next letter
+let addedW = false;
+let letters2 = [];  
+let lettersToAdd2 = ["E","V","E","L"," ","1"]; // letters to add on each line array
+
+let myFaceLandmarker;
+let faceLandmarks;
+let myCapture;
+let lastVideoTime = -1;
+let extra;
+
+let noFaceDetectedStartTime = null;
+const NO_FACE_DETECTED_THRESHOLD = 30000;
+
+let eyebrowRaised = false; // Flag to track if eyebrow is raised
+
+let tryingToNavigate = false; //for loading next html
+
+// Works best with just one or two sets of landmarks.
+const trackingConfig = {
+  doAcquireFaceMetrics: true,
+  cpuOrGpuString: "GPU", /* "GPU" or "CPU" */
+  maxNumFaces: 1, // number of faces to track
+};
+
+//------------------------------------------
+//loads the mediapipe Facelandmarker and sets up thhe fileset resolver for vision tasks
+async function preload() {
+  myFont = loadFont('PublicPixel.ttf');
+
+  const mediapipe_module = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js');
+  FaceLandmarker = mediapipe_module.FaceLandmarker;
+  FilesetResolver = mediapipe_module.FilesetResolver;
+  
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.7/wasm"
+  );
+  
+  // Face Landmark Tracking:
+  // https://codepen.io/mediapipe-preview/pen/OJBVQJm
+  // https://developers.google.com/mediapipe/solutions/vision/face_landmarker
+	myFaceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+		numFaces: trackingConfig.maxNumFaces,
+		runningMode: "VIDEO",
+		outputFaceBlendshapes:trackingConfig.doAcquireFaceMetrics,
+		baseOptions: {
+			delegate: trackingConfig.cpuOrGpuString,
+			modelAssetPath:
+				"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+		},
+	});
+}
+
+//------------------------------------------
+//function to continously process video frames from the webcam using 'requestAnimationFrame'
+async function predictWebcam() {
+  let startTimeMs = performance.now();
+  if (lastVideoTime !== myCapture.elt.currentTime) {
+    if (myFaceLandmarker) {
+      faceLandmarks = myFaceLandmarker.detectForVideo(myCapture.elt,startTimeMs);
+    }
+    lastVideoTime = myCapture.elt.currentTime;
+  }
+  window.requestAnimationFrame(predictWebcam);
+}
+
+const checkOthers = () => {
+  fetch('http://10.10.1.1:3000/atIndex').then(res => res.json()).then(atIndexs => {
+    if (atIndexs.R.value || atIndexs.G.value || atIndexs.B.value) {
+      fetch('http://10.10.1.1:3000/reset')
+      window.location.href = "Index.html"; // Redirect to the next interface
+    }
+  })
+}
+
+function setup() {
+  checkOthers();
+  createCanvas(1075, 1780);
+  myCapture = createCapture(VIDEO);
+  myCapture.size(320, 240);
+  myCapture.hide();
+
+  startTime = millis(); // Record the start time
+  caption = createGraphics(1075, 1780); //Canvas for second line of text 
+  caption.background(0); 
+}
+
+
+
+function draw() {
+  background(0);
+  let faceDetected = false;
+  let currentTime = millis();
+  let elapsedTime = (currentTime - startTime) / 1000; // Calculate elapsed time in seconds
+
+  push();
+stroke(255);
+ rect(0,0,500,500);
+pop();
+
+  typography();
+  drawText(elapsedTime);
+  frameCount++;
+
+  //function to draw the circle
+  if (elapsedTime >= 5) {
+    drawCircle();
+
+    // Update the countdown every second after 5 seconds
+    if (frameCount % 60 == 0 && countdown > 0) {
+      countdown--;
+    } else if (countdown == 0) { //once the countdown reaches 0 open Face recognition
+      window.location.href = "FaceRecognition.html";
+    }
+  }
+
+  //call all functions and extra canvas
+  predictWebcam(); 
+  
+  if (faceDetected) {
+    noFaceDetectedStartTime = null; // Reset timer when a face is detected
+  } else {
+    if (!noFaceDetectedStartTime) {
+      noFaceDetectedStartTime = millis(); // Start timer when no face is detected
+    } else if (millis() - noFaceDetectedStartTime > NO_FACE_DETECTED_THRESHOLD) {
+      if (!tryingToNavigate) {
+        console.log("No face detected for more than 30 seconds. Redirecting...");
+        window.location.href = "Index.html"; // Redirect to the next interface
+        tryingToNavigate = true; // Mark navigation as initiated
+      }
+    }
+  }
+}
+
+function drawText(elapsedTime) {
+  fill(255);
+  textSize(35);
+  textFont(myFont);
+  textAlign(CENTER, CENTER);
+
+  // Add the letters of 'Waiting...' one by one until countdown begins
+  if (elapsedTime < 5 && letters.length < waitingText.length) {
+    if (frameCount >= nextLetterTime) {
+      letters.push(waitingText[letters.length]);
+      nextLetterTime = frameCount + delayBetweenLetters;
+    }
+  }
+
+  const spacing = 20; // Spacing between letters
+
+  // Display the letters on the canvas
+  let displayString = letters.join('');
+  text(displayString, width / 2, height / 2);
+
+
+  // Display the countdown if 5 seconds have passed
+  if (elapsedTime >= 5) {
+   // Clear the area where the countdown will be displayed
+   fill(0); // Set fill color to background color
+   stroke(0)
+   rectMode(CENTER); // Set rectangle mode to center
+   rect(width / 2, height / 2, 400, 50); // Draw a rectangle over the area
+
+   // Display the countdown
+   fill(255); // Reset fill color
+   text(countdown, width / 2, height / 2 );
+  }
+}
+
+
+function drawCircle() {
+  let circleRadius = 300; // Radius of the circle
+  let circleX = width / 2; // X-coordinate of the circle center
+  let circleY = height / 2; // Y-coordinate of the circle center
+
+  // Calculate the angle for the countdown progress
+  let angle = map(countdown, 0, 5, 0, TWO_PI); // Map the countdown value to an angle
+
+  // Draw the countdown circle
+  noFill();
+  stroke(255);
+  strokeWeight(5);
+  beginShape();
+  for (let a = 0; a <= angle; a += 0.01) {
+    let x = circleX + cos(a) * circleRadius;
+    let y = circleY + sin(a) * circleRadius;
+    vertex(x, y);
+  }
+  endShape();
+}
+
+function typography(){
+  image(caption, 0, 0);
+  caption.strokeWeight(1);
+  push(); 
+  caption.stroke(255);
+  caption.noFill();
+  caption.rect(22, 20,1030,1740)
+  pop();
+
+  push(); 
+  caption.stroke(255);
+  caption.noFill();
+  caption.rect(750,70,250, 100);
+  pop();
+
+  push(); 
+  caption.stroke(255);
+  caption.noFill();
+  caption.rect(60,200,940, 1500);
+  pop();
+
+  push(); // the title
+  caption.fill(255);
+  caption.textSize(30);
+  caption.textFont(myFont);
+
+  
+  if (frameCount < delayFrames && !addedW) { //if frame count is smaller than delayframes add first letter
+    letters2.push("L"); //push the first letter
+    addedW = true; // Indicate that first letter have been added
+    nextLetterTime = frameCount + delayBetweenLetters; // time in between letters
+  }
+
+  if (frameCount >= nextLetterTime && lettersToAdd2.length > 0) {
+    letters2.push(lettersToAdd2.shift()); // Add the next letter from the array
+    nextLetterTime = frameCount + delayBetweenLetters; //add next letter after 10 frames
+  }
+
+  const spacing = 30;// amount of spacing beteen letters 
+  // Display the letters from the array
+  for (let i = 0; i < letters2.length; i++) {
+   caption.text(letters2[i], 770 + i * spacing, 135);//display on the extra canvas, add spacing so letters are clear
+  }
+pop();// the push and pop functions allow me to change the setting for brief parts of the code 
+
+}
+function mousePressed () {
+    window.location.href = "Index.html";  // Open the next interface
+  }
+    </script>
+</body>
+</html> 

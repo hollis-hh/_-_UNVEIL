@@ -1,0 +1,260 @@
+<!-- THE FINAL COLOR VALUE  -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="p5.min.js"></script>
+    <title>Single</title>
+</head>
+<body style=" overflow-y: hidden;  overflow-x: hidden; background-color: rgb(0, 0, 0); cursor: none;"> 
+    <script>
+        //letter array 
+//RBG = 170, 183, 80
+let devices = [];
+let letters = []; // letter array 
+let letters1 = [];
+let letters2 = []; // letter array 
+let letters3 = []; // letter array
+let delayFrames = 240; // 2 seconds to being 
+let addedW = false; // Track if first letter has been added 
+let delayBetweenLetters = 5; // 1/6 of a second between letters
+let nextLetterTime = 0; // Track when to add the next letter
+var definedR; 
+let definedB;
+let definedG; 
+
+let myFont;
+
+let lettersToAdd;
+let lettersToAdd1 = ["O","N","G","R","A","T","U","L","A","T","I","O","N","S"," ","A","L","L"," ","P","L","A","Y","E","R","S"]
+let lettersToAdd2 = ["R", ",", "G", ",", "B", " ", "C", "O", "L", "O", "U", "R", " ","*","U", "N", "L", "O", "C", "K", "E", "D", "*"];
+let lettersToAdd3;
+
+
+let tryingToNavigate = false; //for loading next html
+
+fetch("http://10.10.1.1:3000/Decidecolour")
+    .then(res => res.json())
+    .then(res => {
+      let valR = res.R;
+      let valG = res.G; 
+      let valB = res.B; 
+     console.log(valR);
+      
+      if (valR !== undefined && valG !== undefined && valB !== undefined) {
+        definedR = Math.ceil(valR);
+        definedG = Math.ceil(valG);
+        definedB = Math.ceil(valB);
+        // console.log(definedR);
+          // Now create the arrays after definedR is set
+          lettersToAdd = ["Y","O","U","R"," ","F","I","N","A","L"," ","C","O","L","O","U","R"," ","I","S", " ","R","G","B",":"];
+           lettersToAdd3 = ["R", "G", "B", ":", definedR, ",", definedG, ",", definedB];
+            
+       }
+ 
+    })
+          
+    const checkOthers = () => {
+  fetch('http://10.10.1.1:3000/atIndex').then(res => res.json()).then(atIndexs => {
+    if (atIndexs.R.value || atIndexs.G.value || atIndexs.B.value) {
+      fetch('http://10.10.1.1:3000/reset')
+      window.location.href = "Index.html"; // Redirect to the next interface
+    }
+  })
+}
+
+
+function preload(){
+  myFont = loadFont('PublicPixel.ttf');
+}
+
+function setup() {
+  checkOthers();
+  createCanvas(1075, 1780, WEBGL); // WEBGL due to animation 
+  myCapture = createCapture(VIDEO);
+  myCapture.size(320, 240);
+  myCapture.hide();
+
+  topWords = createGraphics(880, 100); //Canvas for first line of text
+  topWords.background(0);
+
+  bottomWords = createGraphics(880, 100); //Canvas for second line of text 
+  bottomWords.background(0); 
+
+  caption = createGraphics(700, 800); //Canvas for second line of text 
+  caption.background(225); 
+
+
+  frameRate(60)// set frame rate 
+
+
+  //styling for extra canvas's 
+  topWords.textSize(30); 
+  topWords.textFont(myFont); 
+  bottomWords.textSize(25); 
+  bottomWords.textFont(myFont); 
+  caption.textSize(25); 
+  caption.textFont(myFont); 
+
+ 
+}
+
+
+function draw(){
+  background(0);
+
+  fill(255); 
+  stroke(2);
+  stroke(18, 69, 26);
+//call functions 
+ 
+ typography(); 
+ 
+ colourBlock();
+ if (lettersToAdd2.length === 0 && frameCount > nextLetterTime) {
+ setTimeout(() => {
+            if (tryingToNavigate == false)//to make sure the html redirects as the next p5 sketch is drawn
+      window.location.href = "2Countdown.html";  // Open the next interface
+          tryingToNavigate = true;
+          }, 13000); // 3000 milliseconds = 3 seconds
+        }
+ push();
+  noFill(); //outer
+  stroke(255);
+  strokeWeight(1);
+  rect(-522,-870,1030,1740)
+  pop();
+
+ 
+
+  push();
+  noFill(); //outer
+  stroke(255);
+  strokeWeight(1);
+  rect(-502,-820,985,250)
+  pop();
+
+  push();
+  noFill(); //outer
+  stroke(255);
+  strokeWeight(1);
+  rect(-502,520,985,250)
+  pop();
+
+  push();
+  noFill(); //outer
+  stroke(255);
+  strokeWeight(1);
+  rect(-502,-530,985,1000)
+  pop();
+}
+
+
+
+// this function animates the text to come in letter by letter
+function typography() {
+  image(topWords, -topWords.width/2, -750);
+  push(); // the title
+  topWords.fill(0,255,0);
+
+  if (frameCount < delayFrames && !addedW) { //if frame count is smaller than delayframes add first letter
+    letters1.push("C"); //push the first letter
+    addedW = true; // Indicate that first letter have been added
+    nextLetterTime = frameCount + delayBetweenLetters; // time in between letters
+  }
+
+  if (frameCount >= nextLetterTime && lettersToAdd1.length > 0) {
+    letters1.push(lettersToAdd1.shift()); // Add the next letter from the array
+    nextLetterTime = frameCount + delayBetweenLetters; //add next letter after 10 frames
+  }
+
+  const spacing1 = 30;// amount of spacing beteen letters 
+  // Display the letters from the array
+  for (let i = 0; i < letters1.length; i++) {
+   topWords.text(letters1[i], 40 + i * spacing1, 30);//display on the extra canvas, add spacing so letters are clear
+  }
+pop();// the push and pop functions allow me to change the setting for brief parts of the code 
+  push(); // the title
+  topWords.fill(0,255,0);
+
+  if (frameCount < delayFrames && !addedW) { //if frame count is smaller than delayframes add first letter
+    letters.push("Y"); //push the first letter
+    addedW = true; // Indicate that first letter have been added
+    nextLetterTime = frameCount + delayBetweenLetters; // time in between letters
+  }
+
+  if (frameCount >= nextLetterTime && lettersToAdd.length > 0) {
+    letters.push(lettersToAdd.shift()); // Add the next letter from the array
+    nextLetterTime = frameCount + delayBetweenLetters; //add next letter after 10 frames
+  }
+
+  const spacing = 30;// amount of spacing beteen letters 
+  // Display the letters from the array
+  for (let i = 0; i < letters.length; i++) {
+   topWords.text(letters[i], 70 + i * spacing, 100);//display on the extra canvas, add spacing so letters are clear
+  }
+pop();// the push and pop functions allow me to change the setting for brief parts of the code 
+image(caption, -350, -420);
+push(); // repeat for second part of code 
+
+  caption.fill( 0);
+  if (frameCount < delayFrames && !addedW) {
+    letters3.push("C"); // Add "W" only once
+    addedW = true; // indicate that "W" has been added
+    nextLetterTime = frameCount + delayBetweenLetters;
+  }
+
+  if (frameCount >= nextLetterTime && lettersToAdd3.length > 0) {
+    letters3.push(lettersToAdd3.shift()); // Add the next letter from the array
+    nextLetterTime = frameCount + delayBetweenLetters; //add next letter after 10 frames
+  }
+  
+  const spacing3 = 70;
+  // Display the letters from the array
+  for (let i = 0; i < letters3.length; i++) {
+   caption.text(letters3[i], 50 + i * spacing3, 735);
+  }
+pop(); 
+  image(bottomWords, -topWords.width/2, 600);
+push(); // repeat for second part of code 
+
+  bottomWords.fill(225);
+  if (frameCount < delayFrames && !addedW) {
+    letters2.push("C"); // Add "W" only once
+    addedW = true; // indicate that "W" has been added
+    nextLetterTime = frameCount + delayBetweenLetters;
+  }
+
+  if (frameCount >= nextLetterTime && lettersToAdd2.length > 0) {
+    letters2.push(lettersToAdd2.shift()); // Add the next letter from the array
+    nextLetterTime = frameCount + delayBetweenLetters; //add next letter after 10 frames
+  }
+
+  const spacing2 = 30;
+  // Display the letters from the array
+  for (let i = 0; i < letters2.length; i++) {
+   bottomWords.text(letters2[i], 90 + i * spacing2, 60);
+  }
+pop(); 
+ 
+}
+
+function colourBlock(){//The Colour square that is the value of the R and G recieved
+     caption.push()
+    caption.fill(definedR,definedG,definedB);
+    caption.noStroke();
+    caption.rect(45,45,600,600)
+    caption.pop()
+  }
+
+  function mousePressed (){
+    window.location.href = "Index.html";
+  }
+
+    </script>
+</body>
+</html>
+
+</html>

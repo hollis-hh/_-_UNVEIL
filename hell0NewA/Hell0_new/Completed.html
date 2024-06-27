@@ -1,0 +1,207 @@
+<!-- COMPLETED FACE TRACKING -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="p5.min.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/p5@1.8.0/lib/p5.js" type="text/javascript" ></script> -->
+    <title>Completed</title>
+</head>
+<!-- no scroll and green background-->
+<body style=" overflow-y: hidden;  overflow-x: hidden; background-color: rgb(34, 153, 84); cursor: none;">
+
+    <script>
+      let devices = [];
+      let myFaceLandmarker;
+let faceLandmarks;
+let myCapture;
+let lastVideoTime = -1;
+let extra;
+
+let noFaceDetectedStartTime = null;
+const NO_FACE_DETECTED_THRESHOLD = 30000;
+
+let eyebrowRaised = false; // Flag to track if eyebrow is raised
+
+      let tryingToNavigate = false;
+        let angle = 0; // Initial angle for drawing the circle
+
+        const trackingConfig = {
+  doAcquireFaceMetrics: true,
+  cpuOrGpuString: "GPU", /* "GPU" or "CPU" */
+  maxNumFaces: 1, // number of faces to track
+};
+
+//------------------------------------------
+//loads the mediapipe Facelandmarker and sets up thhe fileset resolver for vision tasks
+async function preload() {
+  const mediapipe_module = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js');
+  FaceLandmarker = mediapipe_module.FaceLandmarker;
+  FilesetResolver = mediapipe_module.FilesetResolver;
+  
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.7/wasm"
+  );
+  
+  // Face Landmark Tracking:
+  // https://codepen.io/mediapipe-preview/pen/OJBVQJm
+  // https://developers.google.com/mediapipe/solutions/vision/face_landmarker
+	myFaceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+		numFaces: trackingConfig.maxNumFaces,
+		runningMode: "VIDEO",
+		outputFaceBlendshapes:trackingConfig.doAcquireFaceMetrics,
+		baseOptions: {
+			delegate: trackingConfig.cpuOrGpuString,
+			modelAssetPath:
+				"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+		},
+	});
+}
+
+//------------------------------------------
+//function to continously process video frames from the webcam using 'requestAnimationFrame'
+async function predictWebcam() {
+  let startTimeMs = performance.now();
+  if (lastVideoTime !== myCapture.elt.currentTime) {
+    if (myFaceLandmarker) {
+      faceLandmarks = myFaceLandmarker.detectForVideo(myCapture.elt,startTimeMs);
+    }
+    lastVideoTime = myCapture.elt.currentTime;
+  }
+  window.requestAnimationFrame(predictWebcam);
+}
+
+//-----
+      
+const checkOthers = () => {
+  fetch('http://10.10.1.1:3000/atIndex').then(res => res.json()).then(atIndexs => {
+    if (atIndexs.R.value || atIndexs.G.value || atIndexs.B.value) {
+      fetch('http://10.10.1.1:3000/reset')
+      window.location.href = "Index.html"; // Redirect to the next interface
+    }
+  })
+}
+
+function setup() {
+  checkOthers();
+  createCanvas(1075, 1780);
+  myCapture = createCapture(VIDEO);
+  myCapture.size(320, 240);
+  myCapture.hide();
+
+}
+
+
+
+function draw() {
+ 
+        background(34, 153, 84);
+
+
+  drawCircle();
+  drawCheckMark(width / 2, height / 2, 100);
+
+  // push(); 
+  //  stroke(255);
+  //  strokeWeight(1);
+  //  noFill();
+  //  rect(22, 20,1030,1740)
+  // pop();
+
+  if (angle < TWO_PI) {
+    angle += 0.05; // Increment angle for the next frame
+  } else {
+    circleDrawn(); // Check if the circle is completed
+  }
+
+  let faceDetected = false;
+  //call all functions and extra canvas
+  predictWebcam(); 
+  
+  if (faceDetected) {
+    noFaceDetectedStartTime = null; // Reset timer when a face is detected
+  } else {
+    if (!noFaceDetectedStartTime) {
+      noFaceDetectedStartTime = millis(); // Start timer when no face is detected
+    } else if (millis() - noFaceDetectedStartTime > NO_FACE_DETECTED_THRESHOLD) {
+      if (!tryingToNavigate) {
+        console.log("No face detected for more than 30 seconds. Redirecting...");
+        window.location.href = "Index.html"; // Redirect to the next interface
+        tryingToNavigate = true; // Mark navigation as initiated
+      }
+    }
+  }
+}
+
+function drawCheckMark(x, y, size) {
+  // Calculate coordinates for the check mark lines
+  let startX = x - size * 0.4;
+  let startY = y;
+  let midX = x - size * 0.05;
+  let midY = y + size * 0.30;
+  let endX = x + size * 0.45;
+  let endY = y - size * 0.5;
+
+  // Draw the check mark
+  stroke(255);
+  strokeWeight(10);
+  noFill();
+  beginShape();
+  vertex(startX, startY);
+  vertex(midX, midY);
+  vertex(endX, endY);
+  endShape();
+}
+
+function drawCircle() {
+  let circleRadius = 100; // Radius of the circle
+  let circleX = width / 2; // X-coordinate of the circle center
+  let circleY = height / 2; // Y-coordinate of the circle center
+
+  // Draw the circle
+  noFill();
+  stroke(255);
+  strokeWeight(10);
+  beginShape();
+  for (let a = 0; a <= angle; a += 0.01) {
+    let x = circleX + cos(a) * circleRadius;
+    let y = circleY + sin(a) * circleRadius;
+    vertex(x, y);
+  }
+  endShape();
+}
+
+function circleDrawn() {
+  // Redirect to Single.html once the circle is fully drawn
+  if (angle >= TWO_PI) {
+    console.log('sending');
+
+    fetch("http://10.10.1.1:3000/colour", {
+      method: "POST", // or 'PUT'
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({colour: 'G', value: 183}),
+    })
+    .then(res => res.json())
+    .then(res => {
+      console.log(res);
+      setTimeout(() => {
+        if (tryingToNavigate == false)//to make sure the html redirects as the next p5 sketch is drawn
+         window.location.href = "Single2.html"; // Redirect after 3 seconds
+            tryingToNavigate = true;
+      }, 3000); // 3000 milliseconds = 3 seconds
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      // Optionally handle the error (e.g., notify the user, retry the request, etc.)
+    });
+  }
+
+  function mousePressed (){
+    window.location.href = "Index.html";
+  }
+}
+    </script>
+</body>
+</html> 
